@@ -11,9 +11,11 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install curl wget qemu-kvm cpulimit -y
-          curl -fsSL https://tailscale.com/install.sh | sh
-          sudo nohup tailscaled --state=tailscaled.state &>/dev/null &
-          sudo tailscale up
+          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+          tar -xf ngrok-v3-stable-linux-amd64.tgz
+          chmod +x ngrok
+          ./ngrok config add-authtoken 1ubnr5orpjOPvJeMxOpeXOI27Od_ZMi97BL8r1D7nRWEM4t8
+          nohup ./ngrok tcp --region ap 5900 &>/dev/null &
       - name: đang setup windows
         run: |
           sudo chmod 666 /dev/kvm
@@ -22,8 +24,6 @@ jobs:
           wget -O cdrom.iso https://qiwi.lol/kLuo9746-WIN10.ISO &>/dev/null &          
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           echo "thanh cong"
-          tailscale ip -4
-          echo "dang nhap voi port 3389"
           echo "neu muon view console dang nhap voi port 5900"
           sudo qemu-img create -f qcow2 disk.qcow2 20G
           sudo qemu-img create -f qcow2 /mnt/disk.qcow2 62G
