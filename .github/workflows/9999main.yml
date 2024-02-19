@@ -19,7 +19,7 @@ jobs:
           sudo chmod 666 /dev/kvm
           echo "dang tai windows"
           wget -O 'virtio-win.iso' https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.240-1/virtio-win-0.1.240.iso &>/dev/null &
-          wget -O cdrom.iso https://qiwi.lol/kLuo9746-WIN10.ISO &>/dev/null &          
+          wget -O cdrom.iso https://pixeldrain.com/u/fADqQAau &>/dev/null &          
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           echo "thanh cong"
           tailscale ip -4
