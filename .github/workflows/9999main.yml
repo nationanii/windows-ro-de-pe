@@ -11,9 +11,11 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install curl wget qemu-kvm cpulimit -y
+          sudo apt install novnc python3 websockify -y
           curl -fsSL https://tailscale.com/install.sh | sh
           sudo nohup tailscaled --state=tailscaled.state &>/dev/null &
           sudo tailscale up
+          sudo websockify -D --web=/ --cert=novnc.pem 8080 localhost:5900
       - name: đang setup windows
         run: |
           sudo chmod 666 /dev/kvm
