@@ -27,7 +27,7 @@ jobs:
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           echo "Done"
           echo "View Console (VNC) $(tailscale ip -4):5900"
-          echo "View Console (VNC) $(tailscale ip -4):3389"
+          echo "RDP $(tailscale ip -4):3389"
           echo "User: Administrator"
           echo "Pass: 1"
           sudo cpulimit -l 75 -- sudo kvm -m 12G,slots=2,maxmem=16G -object memory-backend-ram,size=6G,id=m0 -object memory-backend-ram,size=6G,id=m1 -numa node,nodeid=0,memdev=m0,cpus=0 -numa node,nodeid=1,memdev=m1,cpus=1 -smp 2,threads=1,cores=2,sockets=1 -cpu host,+nx,+avx,+amd-ssbd -drive file=-/home/runner/disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native -drive file=/mnt/disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native -device usb-ehci,id=usb,bus=pcie.0 -device usb-tablet -device usb-kbd -device virtio-serial-pci -device virtio-rng-pci -device virtio-balloon-pci -machine q35 -device qxl-vga,vgamem_mb=128 -audiodev none,id=audiodev0 -device ich9-intel-hda -device hda-output,audiodev=audiodev0 -vnc :0,audiodev=audiodev0 -device virtio-net-pci,netdev=net0 -bios /usr/share/ovmf/OVMF.fd -netdev user,id=net0,hostfwd=tcp::3389-:3389 
