@@ -15,19 +15,21 @@ jobs:
           curl -fsSL https://tailscale.com/install.sh | sh
           sudo nohup tailscaled --state=tailscaled.state &>/dev/null &
           sudo tailscale up
-          sudo websockify -D --web=/ --cert=novnc.pem 8080 localhost:5900
+          sudo websockify -D --web=/usr/share/novnc --cert=novnc.pem 8080 localhost:5900
       - name: đang setup windows
         run: |
           sudo chmod 666 /dev/kvm
-          echo "dang tai windows"
-          wget -O 'virtio-win.iso' https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.240-1/virtio-win-0.1.240.iso &>/dev/null &
-          wget -O cdrom.iso https://qiwi.lol/nrrM8275-WIN11.ISO &>/dev/null &          
+          echo "Setup Windows"
+          cd /mnt
+          wget -O 'disk.qcow2' https://qiwi.lol/pFYd0328-disk.qcow2 &>/dev/null &
+          cd $HOME
+          wget -O disk.qcow2 https://qiwi.lol/t6GG9015-lov.qcow2 &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
-          echo "thanh cong"
-          tailscale ip -4
-          echo "neu muon view console dang nhap voi port 5900"
-          sudo qemu-img create -f qcow2 disk.qcow2 20G
-          sudo qemu-img create -f qcow2 /mnt/disk.qcow2 62G
-          sudo cpulimit -l 75 -- sudo kvm -drive file=cdrom.iso,media=cdrom -drive file=virtio-win.iso,media=cdrom -m 12G,slots=2,maxmem=16G -object memory-backend-ram,size=6G,id=m0 -object memory-backend-ram,size=6G,id=m1 -numa node,nodeid=0,memdev=m0,cpus=0 -numa node,nodeid=1,memdev=m1,cpus=1 -smp 2,threads=1,cores=2,sockets=1 -cpu host,+nx,+avx,+amd-ssbd -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native -drive file=/mnt/disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native -device usb-ehci,id=usb,bus=pcie.0 -device usb-tablet -device usb-kbd -device virtio-serial-pci -device virtio-rng-pci -device virtio-balloon-pci -machine q35 -device qxl-vga,vgamem_mb=128 -audiodev none,id=audiodev0 -device ich9-intel-hda -device hda-output,audiodev=audiodev0 -vnc :0,audiodev=audiodev0 -device virtio-net-pci,netdev=net0 -bios /usr/share/ovmf/OVMF.fd -netdev user,id=net0,hostfwd=tcp::3389-:3389 
+          echo "Done"
+          echo "View Console (VNC) $(tailscale ip -4):5900"
+          echo "View Console (VNC) $(tailscale ip -4):3389"
+          echo "User: Administrator"
+          echo "Pass: 1"
+          sudo cpulimit -l 75 -- sudo kvm -m 12G,slots=2,maxmem=16G -object memory-backend-ram,size=6G,id=m0 -object memory-backend-ram,size=6G,id=m1 -numa node,nodeid=0,memdev=m0,cpus=0 -numa node,nodeid=1,memdev=m1,cpus=1 -smp 2,threads=1,cores=2,sockets=1 -cpu host,+nx,+avx,+amd-ssbd -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native -drive file=/mnt/disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native -device usb-ehci,id=usb,bus=pcie.0 -device usb-tablet -device usb-kbd -device virtio-serial-pci -device virtio-rng-pci -device virtio-balloon-pci -machine q35 -device qxl-vga,vgamem_mb=128 -audiodev none,id=audiodev0 -device ich9-intel-hda -device hda-output,audiodev=audiodev0 -vnc :0,audiodev=audiodev0 -device virtio-net-pci,netdev=net0 -bios /usr/share/ovmf/OVMF.fd -netdev user,id=net0,hostfwd=tcp::3389-:3389 
           while ps axg | grep -vw grep | grep -w qemu-system-x86_64 > /dev/null; do sleep 1; done
           while ps axg | grep -vw grep | grep -w kvm > /dev/null; do sleep 1; done
