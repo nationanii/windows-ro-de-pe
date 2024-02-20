@@ -20,9 +20,9 @@ jobs:
         run: |
           sudo chmod 666 /dev/kvm
           echo "Setup Windows"
-          wget -O /mnt/disk.qcow2 https://qiwi.lol/pFYd0328-disk.qcow2 
+          sudo wget -O /mnt/disk.qcow2 https://qiwi.lol/pFYd0328-disk.qcow2 &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
-          wget -O disk.qcow2 https://qiwi.lol/t6GG9015-lov.qcow2 
+          sudo wget -O disk.qcow2 https://qiwi.lol/t6GG9015-lov.qcow2 &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           echo "Done"
           echo "View Console (VNC) $(tailscale ip -4):5900"
