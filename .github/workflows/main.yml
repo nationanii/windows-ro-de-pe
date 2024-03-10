@@ -20,7 +20,7 @@ jobs:
         run: |
           sudo chmod 666 /dev/kvm
           echo "Setup Windows"
-          sudo wget -O cdrom.iso https://qiwi.lol/aJXV8957-Win1022H2build19045.ISO &>/dev/null &
+          sudo wget -O cdrom.iso https://pixeldrain.com/u/ao5gGTQh &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           sudo wget -O virtio-win.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.248-1/virtio-win.iso &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
