@@ -9,7 +9,6 @@ jobs:
     steps:
       - name: chuẩn bị phần mềm
         run: |
-          ls /dev/kvm
           df -h
           free -h
           lscpu
