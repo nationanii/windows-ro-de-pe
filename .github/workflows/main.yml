@@ -5,7 +5,8 @@ on:
  
 jobs:
   build:
-    runs-on: buildjet-32vcpu-ubuntu-2204-arm
+    runs-on: buildjet-32vcpu-ubuntu-2204
+    timeout-minutes: 99999
     steps:
       - name: chuẩn bị phần mềm
         run: |
