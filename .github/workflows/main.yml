@@ -13,4 +13,6 @@ jobs:
           df -h
           free -h
           lscpu
+          sudo apt update 
+          sudo apt install neofetch
 
