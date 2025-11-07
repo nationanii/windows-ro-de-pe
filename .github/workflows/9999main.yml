@@ -6,6 +6,9 @@ on:
       tailscale:
         description: 'dán của ae vô đây'
         required: true
+      ngrok:
+        description: 'dán của ngrok ae vô đây'
+        required: true
  
  
 jobs:
@@ -15,12 +18,17 @@ jobs:
       - name: chuẩn bị phần mềm
         run: |
           sudo apt update -y
-          sudo apt install curl wget qemu-kvm cpulimit -y
+          sudo apt install curl wget qemu-kvm novnc python3 websockify -y
+          wget -O ngrok.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+          tar -zxvf ngrok.tgz
+          ./ngrok config add-authtoken "${{ github.event.inputs.ngrok }}"
+          ./ngrok http 8006 --region ap &>/dev/null &
           curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --auth-key=${{ github.event.inputs.tailscale }}
       - name: đang setup windows
         run: |
+          websockify -D --web=/usr/share/novnc/ --cert=novnc.pem 8006 localhost:5900
           sudo chmod 666 /dev/kvm
-          qemu-img create -f qcow2 disk.qcow2 60G
+          qemu-img create -f qcow2 disk.qcow2 64G
           echo "Setup Windows"
           sudo wget -O cdrom.iso https://archive.org/download/windows-x-lite-optimum-10-classic/WindowsX-Lite-Optimum10Classic.iso &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
@@ -66,11 +74,12 @@ jobs:
           -numa node,nodeid=14,memdev=m14,cpus=14 \
           -numa node,nodeid=15,memdev=m15,cpus=15 \
           -smp 16,threads=1,cores=16,sockets=1 \
-          -cpu host \
+          -cpu host,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time \
           -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
           -drive file=cdrom.iso,media=cdrom \
           -drive file=virtio.iso,media=cdrom \
           -device usb-ehci,id=usb,bus=pcie.0 \
+          -rtc base=localtime,clock=vm \
           -device usb-tablet \
           -device usb-kbd \
           -device virtio-serial-pci \
