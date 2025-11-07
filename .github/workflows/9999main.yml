@@ -2,6 +2,11 @@ name: Tailscale (for advance user)
 
 on: 
   workflow_dispatch:
+    inputs:
+      tailscale:
+        description: 'dán của ae vô đây'
+        required: true
+ 
  
 jobs:
   build:
@@ -11,9 +16,7 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install curl wget qemu-kvm cpulimit -y
-          curl -fsSL https://tailscale.com/install.sh | sh
-          sudo nohup tailscaled --state=tailscaled.state &>/dev/null &
-          sudo tailscale up
+          curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --auth-key=${{ github.event.inputs.tailscale }}
       - name: đang setup windows
         run: |
           sudo chmod 666 /dev/kvm
