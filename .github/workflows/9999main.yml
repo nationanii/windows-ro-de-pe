@@ -11,18 +11,17 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install curl wget qemu-kvm cpulimit -y
-          sudo apt install novnc python3 websockify -y
           curl -fsSL https://tailscale.com/install.sh | sh
           sudo nohup tailscaled --state=tailscaled.state &>/dev/null &
           sudo tailscale up
-          sudo websockify -D --web=/usr/share/novnc --cert=novnc.pem 8080 localhost:5900
       - name: đang setup windows
         run: |
           sudo chmod 666 /dev/kvm
+          qemu-img create -f qcow2 disk.qcow2 60G
           echo "Setup Windows"
-          sudo wget -O /mnt/disk.qcow2 https://qiwi.lol/pFYd0328-disk.qcow2 &>/dev/null &
+          sudo wget -O cdrom.iso https://pixeldrain.com/u/pEvLwA2J &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
-          sudo wget -O disk.qcow2 https://qiwi.lol/t6GG9015-lov.qcow2 &>/dev/null &
+          sudo wget -O virt.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.285-1/virtio-win-0.1.285.iso &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           echo "Done"
           echo "View Console (VNC) $(tailscale ip -4):5900"
@@ -30,13 +29,42 @@ jobs:
           echo "User: Administrator"
           echo "Pass: 1"
           sudo kvm \
-          -m 12G,slots=2,maxmem=16G \
-          -object memory-backend-ram,size=6G,id=m0 \
-          -object memory-backend-ram,size=6G,id=m1 \
+          -m 32G,slots=4,maxmem=128G \
+          -object memory-backend-ram,size=2G,id=m0 \
+          -object memory-backend-ram,size=2G,id=m1 \
+          -object memory-backend-ram,size=2G,id=m2 \
+          -object memory-backend-ram,size=2G,id=m3 \
+          -object memory-backend-ram,size=2G,id=m4 \
+          -object memory-backend-ram,size=2G,id=m5 \
+          -object memory-backend-ram,size=2G,id=m6 \
+          -object memory-backend-ram,size=2G,id=m7 \
+          -object memory-backend-ram,size=2G,id=m8 \
+          -object memory-backend-ram,size=2G,id=m9 \
+          -object memory-backend-ram,size=2G,id=m10 \
+          -object memory-backend-ram,size=2G,id=m11 \
+          -object memory-backend-ram,size=2G,id=m12 \
+          -object memory-backend-ram,size=2G,id=m13 \
+          -object memory-backend-ram,size=2G,id=m14 \
+          -object memory-backend-ram,size=2G,id=m15 \
           -numa node,nodeid=0,memdev=m0,cpus=0 \
           -numa node,nodeid=1,memdev=m1,cpus=1 \
-          -smp 2,threads=1,cores=2,sockets=1 \
-          -cpu host,+nx,+avx,+amd-ssbd -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
+          -numa node,nodeid=2,memdev=m2,cpus=2 \
+          -numa node,nodeid=3,memdev=m3,cpus=3 \
+          -numa node,nodeid=4,memdev=m4,cpus=4 \
+          -numa node,nodeid=5,memdev=m5,cpus=5 \
+          -numa node,nodeid=6,memdev=m6,cpus=6 \
+          -numa node,nodeid=7,memdev=m7,cpus=7 \
+          -numa node,nodeid=8,memdev=m8,cpus=8 \
+          -numa node,nodeid=9,memdev=m9,cpus=9 \
+          -numa node,nodeid=10,memdev=m10,cpus=10 \
+          -numa node,nodeid=11,memdev=m11,cpus=11 \
+          -numa node,nodeid=12,memdev=m12,cpus=12 \
+          -numa node,nodeid=13,memdev=m13,cpus=13 \
+          -numa node,nodeid=14,memdev=m14,cpus=14 \
+          -numa node,nodeid=15,memdev=m15,cpus=15 \
+          -smp 16,threads=1,cores=16,sockets=1 \
+          -cpu host \
+          -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
           -drive file=/mnt/disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
           -device usb-ehci,id=usb,bus=pcie.0 \
           -device usb-tablet \
