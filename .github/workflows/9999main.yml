@@ -68,7 +68,8 @@ jobs:
           -smp 16,threads=1,cores=16,sockets=1 \
           -cpu host \
           -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
-          -drive file=/mnt/disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
+          -drive file=cdrom.iso,media=cdrom \
+          -drive file=virtio.iso,media=cdrom \
           -device usb-ehci,id=usb,bus=pcie.0 \
           -device usb-tablet \
           -device usb-kbd \
