@@ -23,7 +23,7 @@ jobs:
           wget -O ngrok.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
           tar -zxvf ngrok.tgz
           ./ngrok config add-authtoken "${{ github.event.inputs.ngrok }}"
-          ./ngrok tcp 3389 --region ap &>/dev/null &
+          ./ngrok tcp 3389 &>/dev/null &
           curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --auth-key=${{ github.event.inputs.tailscale }}
       - name: đang setup windows
         run: |
