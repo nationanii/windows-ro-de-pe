@@ -1,19 +1,98 @@
-name: Tailscale (iso)
+name: Tailscale (for advance user)
 
 on: 
   workflow_dispatch:
+    inputs:
+      tailscale:
+        description: 'dán của ae vô đây'
+        required: true
+      ngrok:
+        description: 'dán của ngrok ae vô đây'
+        required: true
+ 
  
 jobs:
   build:
-    runs-on: buildjet-32vcpu-ubuntu-2204
-    timeout-minutes: 99999
+    timeout-minutes: 1440
+    runs-on: buildjet-16vcpu-ubuntu-2204
     steps:
       - name: chuẩn bị phần mềm
         run: |
-          df -h
-          free -h
-          lscpu
-          sudo apt update 
-          sudo apt install neofetch
-          neofetch
-
+          sudo apt update -y
+          sudo apt install curl wget qemu-kvm -y
+          wget -O ngrok.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+          tar -zxvf ngrok.tgz
+          ./ngrok config add-authtoken "${{ github.event.inputs.ngrok }}"
+          ./ngrok tcp 3389 --region ap &>/dev/null &
+          curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --auth-key=${{ github.event.inputs.tailscale }}
+      - name: đang setup windows
+        run: |
+          sudo chmod 666 /dev/kvm
+          qemu-img create -f qcow2 disk.qcow2 64G
+          echo "Setup Windows"
+          sudo wget --no-check-certificate -O cdrom.iso https://148.100.112.68:3923/WindowsX-Lite-Optimum10Classic.iso &>/dev/null &
+          while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
+          sudo wget -O virtio.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.285-1/virtio-win-0.1.285.iso &>/dev/null &
+          while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
+          echo "Done"
+          echo "View Console (VNC) $(tailscale ip -4):5900"
+          echo "RDP $(tailscale ip -4):3389"
+          echo "User: Administrator"
+          echo "Pass: 1"
+          sudo kvm \
+          -m 32G,slots=4,maxmem=128G \
+          -object memory-backend-ram,size=2G,id=m0 \
+          -object memory-backend-ram,size=2G,id=m1 \
+          -object memory-backend-ram,size=2G,id=m2 \
+          -object memory-backend-ram,size=2G,id=m3 \
+          -object memory-backend-ram,size=2G,id=m4 \
+          -object memory-backend-ram,size=2G,id=m5 \
+          -object memory-backend-ram,size=2G,id=m6 \
+          -object memory-backend-ram,size=2G,id=m7 \
+          -object memory-backend-ram,size=2G,id=m8 \
+          -object memory-backend-ram,size=2G,id=m9 \
+          -object memory-backend-ram,size=2G,id=m10 \
+          -object memory-backend-ram,size=2G,id=m11 \
+          -object memory-backend-ram,size=2G,id=m12 \
+          -object memory-backend-ram,size=2G,id=m13 \
+          -object memory-backend-ram,size=2G,id=m14 \
+          -object memory-backend-ram,size=2G,id=m15 \
+          -numa node,nodeid=0,memdev=m0,cpus=0 \
+          -numa node,nodeid=1,memdev=m1,cpus=1 \
+          -numa node,nodeid=2,memdev=m2,cpus=2 \
+          -numa node,nodeid=3,memdev=m3,cpus=3 \
+          -numa node,nodeid=4,memdev=m4,cpus=4 \
+          -numa node,nodeid=5,memdev=m5,cpus=5 \
+          -numa node,nodeid=6,memdev=m6,cpus=6 \
+          -numa node,nodeid=7,memdev=m7,cpus=7 \
+          -numa node,nodeid=8,memdev=m8,cpus=8 \
+          -numa node,nodeid=9,memdev=m9,cpus=9 \
+          -numa node,nodeid=10,memdev=m10,cpus=10 \
+          -numa node,nodeid=11,memdev=m11,cpus=11 \
+          -numa node,nodeid=12,memdev=m12,cpus=12 \
+          -numa node,nodeid=13,memdev=m13,cpus=13 \
+          -numa node,nodeid=14,memdev=m14,cpus=14 \
+          -numa node,nodeid=15,memdev=m15,cpus=15 \
+          -smp 16,threads=1,cores=16,sockets=1 \
+          -cpu host,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time \
+          -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
+          -drive file=cdrom.iso,media=cdrom \
+          -drive file=virtio.iso,media=cdrom \
+          -device usb-ehci,id=usb,bus=pcie.0 \
+          -rtc base=localtime,clock=vm \
+          -device usb-tablet \
+          -device usb-kbd \
+          -device virtio-serial-pci \
+          -device virtio-rng-pci \
+          -device virtio-balloon-pci \
+          -machine q35 \
+          -device qxl-vga,vgamem_mb=128 \
+          -audiodev none,id=audiodev0 \
+          -device ich9-intel-hda \
+          -device hda-output,audiodev=audiodev0 \
+          -vnc :0,audiodev=audiodev0 \
+          -device virtio-net-pci,netdev=net0 \
+          -bios /usr/share/ovmf/OVMF.fd \
+          -netdev user,id=net0,hostfwd=tcp::3389-:3389 
+          while ps axg | grep -vw grep | grep -w qemu-system-x86_64 > /dev/null; do sleep 1; done
+          while ps axg | grep -vw grep | grep -w kvm > /dev/null; do sleep 1; done
