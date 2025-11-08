@@ -36,6 +36,7 @@ jobs:
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           echo "Done"
           echo "View Console (VNC) $(tailscale ip -4):5900"
+          curl --silent --show-error http://127.0.0.1:4040/api/tunnels | sed -nE 's/.*public_url":"tcp:..([^"]*).*/\1/p'
           echo "RDP $(tailscale ip -4):3389"
           echo "User: Administrator"
           echo "Pass: 1"
