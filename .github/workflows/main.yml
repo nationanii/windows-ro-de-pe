@@ -18,10 +18,7 @@ jobs:
     steps:
       - name: chuẩn bị phần mềm
         run: |
-          cat /sys/module/kvm_amd/parameters/nested
-          sudo modprobe -r kvm_amd
-          sudo modprobe kvm_amd nested=1
-          lsmod | grep -i kvm
+          whoami
       - name: chuẩn bị
         run: |
           sudo apt update -y
@@ -81,7 +78,7 @@ jobs:
           -numa node,nodeid=14,memdev=m14,cpus=14 \
           -numa node,nodeid=15,memdev=m15,cpus=15 \
           -smp 16,threads=1,cores=16,sockets=1 \
-          -cpu kvm64,+vmx \
+          -cpu host \
           -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
           -drive file=cdrom.iso,media=cdrom \
           -drive file=virtio.iso,media=cdrom \
