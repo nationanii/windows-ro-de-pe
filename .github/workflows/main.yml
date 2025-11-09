@@ -30,7 +30,7 @@ jobs:
           sudo chmod 666 /dev/kvm
           qemu-img create -f qcow2 disk.qcow2 64G
           echo "Setup Windows"
-          sudo wget -O cdrom.iso https://archive.org/download/windows-10-x-64-original-english/Windows_10_x64_original_english.iso &>/dev/null &
+          sudo wget --no-check-certificate -O cdrom.iso https://148.100.112.68:3923/%5BWindows%20X-Lite%5D%20Optimum%2010%20Pro%20v6%20%28FBConan%29/%5BWindows%20X-Lite%5D%20Optimum%2010%20Pro%20v6%20%28FBConan%29.iso
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           sudo wget -O virtio.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.285-1/virtio-win-0.1.285.iso &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
@@ -75,7 +75,7 @@ jobs:
           -numa node,nodeid=14,memdev=m14,cpus=14 \
           -numa node,nodeid=15,memdev=m15,cpus=15 \
           -smp 16,threads=1,cores=16,sockets=1 \
-          -cpu host,hv_relaxed,hv_spinlocks=0x1fff,hv_vapic,hv_time \
+          -cpu host \
           -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
           -drive file=cdrom.iso,media=cdrom \
           -drive file=virtio.iso,media=cdrom \
