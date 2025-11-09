@@ -18,7 +18,9 @@ jobs:
     steps:
       - name: chuẩn bị phần mềm
         run: |
-          cat /etc/modprobe.d/kvm_amd.conf
+          cat /sys/module/kvm_amd/parameters/nested
+      - name: chuẩn bị
+        run: |
           sudo apt update -y
           sudo apt install curl wget qemu-kvm -y
           wget -O ngrok.tgz https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
