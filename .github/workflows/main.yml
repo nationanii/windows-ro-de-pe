@@ -21,7 +21,7 @@ jobs:
           cat /sys/module/kvm_amd/parameters/nested
           sudo modprobe -r kvm_amd
           sudo modprobe kvm_amd nested=1
-          cat /etc/modprobe.d/kvm_amd.conf
+          lsmod | grep -i kvm
       - name: chuẩn bị
         run: |
           sudo apt update -y
@@ -81,7 +81,7 @@ jobs:
           -numa node,nodeid=14,memdev=m14,cpus=14 \
           -numa node,nodeid=15,memdev=m15,cpus=15 \
           -smp 16,threads=1,cores=16,sockets=1 \
-          -cpu host,-vmx \
+          -cpu kvm64,+vmx \
           -drive file=disk.qcow2,media=disk,format=qcow2,if=virtio,cache=none,aio=native \
           -drive file=cdrom.iso,media=cdrom \
           -drive file=virtio.iso,media=cdrom \
@@ -101,5 +101,4 @@ jobs:
           -device virtio-net-pci,netdev=net0 \
           -bios /usr/share/ovmf/OVMF.fd \
           -netdev user,id=net0,hostfwd=tcp::3389-:3389 
-          while ps axg | grep -vw grep | grep -w qemu-system-x86_64 > /dev/null; do sleep 1; done
-          while ps axg | grep -vw grep | grep -w kvm > /dev/null; do sleep 1; done
+          
