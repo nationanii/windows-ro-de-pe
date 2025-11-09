@@ -19,6 +19,9 @@ jobs:
       - name: chuẩn bị phần mềm
         run: |
           cat /sys/module/kvm_amd/parameters/nested
+          sudo modprobe -r kvm_amd
+          sudo modprobe kvm_amd nested=1
+          cat /etc/modprobe.d/kvm_amd.conf
       - name: chuẩn bị
         run: |
           sudo apt update -y
