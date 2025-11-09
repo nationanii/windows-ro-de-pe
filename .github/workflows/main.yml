@@ -30,7 +30,7 @@ jobs:
           sudo chmod 666 /dev/kvm
           qemu-img create -f qcow2 disk.qcow2 64G
           echo "Setup Windows"
-          sudo wget --no-check-certificate -O cdrom.iso https://148.100.112.68:3923/Windows10%20SuperLite%20TeamOS%20Edition.iso &>/dev/null &
+          sudo wget --no-check-certificate -O cdrom.iso https://148.100.112.68:3923/win10superlite.iso &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
           sudo wget -O virtio.iso https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/virtio-win-0.1.285-1/virtio-win-0.1.285.iso &>/dev/null &
           while ps axg | grep -vw grep | grep -w wget > /dev/null; do sleep 1; done
