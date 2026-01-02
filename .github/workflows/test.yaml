@@ -1,20 +1,18 @@
-name: Create AWS GPU (Input Credentials)
+name: AWS GPU (Custom VPC/Subnet Fix)
 
 on:
   workflow_dispatch:
     inputs:
-      # --- NHẬP CREDENTIALS TẠI ĐÂY ---
       aws_access_key_id:
         description: 'AWS Access Key ID'
         required: true
       aws_secret_access_key:
         description: 'AWS Secret Access Key'
         required: true
-      # --------------------------------
       aws_region:
         description: 'AWS Region'
         required: true
-        default: 'ap-southeast-1' # Singapore
+        default: 'ap-southeast-1'
       instance_type:
         description: 'Instance Type'
         required: true
@@ -27,7 +25,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Cấu hình AWS CLI dùng thông tin từ Input thay vì Secrets
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -35,21 +32,40 @@ jobs:
           aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
           aws-region: ${{ inputs.aws_region }}
 
-      # Vẫn tự động tạo Key Pair cho Windows để bạn không cần tạo trước
+      # 1. Tự động lấy ID của VPC và Subnet đầu tiên tìm thấy
+      - name: Get VPC and Subnet Info
+        id: get-network
+        run: |
+          echo "Finding available VPC..."
+          # Lấy VPC ID đầu tiên trong danh sách
+          VPC_ID=$(aws ec2 describe-vpcs --query "Vpcs[0].VpcId" --output text)
+          
+          if [ "$VPC_ID" == "None" ] || [ -z "$VPC_ID" ]; then
+            echo "❌ Error: No VPC found in this region. Please create a VPC first."
+            exit 1
+          fi
+          
+          echo "Found VPC: $VPC_ID"
+          echo "VPC_ID=$VPC_ID" >> $GITHUB_ENV
+
+          # Lấy Subnet ID đầu tiên thuộc VPC đó
+          SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "Subnets[0].SubnetId" --output text)
+          
+          if [ "$SUBNET_ID" == "None" ] || [ -z "$SUBNET_ID" ]; then
+             echo "❌ Error: No Subnet found in VPC $VPC_ID."
+             exit 1
+          fi
+          
+          echo "Found Subnet: $SUBNET_ID"
+          echo "SUBNET_ID=$SUBNET_ID" >> $GITHUB_ENV
+
       - name: Create Temporary Key Pair
-        id: create-key
         run: |
           KEY_NAME="gh-action-key-${{ github.run_id }}"
-          aws ec2 create-key-pair \
-            --key-name $KEY_NAME \
-            --key-type rsa \
-            --query 'KeyMaterial' \
-            --output text > $KEY_NAME.pem
-          
+          aws ec2 create-key-pair --key-name $KEY_NAME --key-type rsa --query 'KeyMaterial' --output text > $KEY_NAME.pem
           echo "KEY_NAME=$KEY_NAME" >> $GITHUB_ENV
           echo "PEM_FILE=$KEY_NAME.pem" >> $GITHUB_ENV
 
-      # Upload file .pem lên Artifacts để bạn tải về lấy pass
       - name: Upload Key Pair
         uses: actions/upload-artifact@v4
         with:
@@ -66,18 +82,33 @@ jobs:
             --output text)
           echo "AMI_ID=$AMI_ID" >> $GITHUB_ENV
 
+      # 2. Tạo Security Group nhưng chỉ định rõ VPC ID
       - name: Create Security Group
         id: create-sg
         run: |
           SG_NAME="github-action-windows-gpu-sg"
-          SG_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=$SG_NAME --query "SecurityGroups[0].GroupId" --output text)
+          
+          # Kiểm tra SG tồn tại chưa, nếu chưa thì tạo
+          SG_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=$SG_NAME "Name=vpc-id,Values=${{ env.VPC_ID }}" --query "SecurityGroups[0].GroupId" --output text)
           
           if [ "$SG_ID" == "None" ]; then
-            SG_ID=$(aws ec2 create-security-group --group-name $SG_NAME --description "Auto Gen SG" --query 'GroupId' --output text)
-            aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 3389 --cidr 0.0.0.0/0
+            echo "Creating SG in VPC ${{ env.VPC_ID }}..."
+            # THÊM --vpc-id VÀO LỆNH NÀY
+            SG_ID=$(aws ec2 create-security-group \
+              --group-name $SG_NAME \
+              --description "Auto Gen SG" \
+              --vpc-id ${{ env.VPC_ID }} \
+              --query 'GroupId' --output text)
+            
+            aws ec2 authorize-security-group-ingress \
+              --group-id $SG_ID \
+              --protocol tcp \
+              --port 3389 \
+              --cidr 0.0.0.0/0
           fi
           echo "SG_ID=$SG_ID" >> $GITHUB_ENV
 
+      # 3. Launch Instance với Subnet ID cụ thể và yêu cầu cấp Public IP
       - name: Launch EC2 Instance
         run: |
           INSTANCE_ID=$(aws ec2 run-instances \
@@ -86,6 +117,8 @@ jobs:
             --instance-type ${{ inputs.instance_type }} \
             --key-name ${{ env.KEY_NAME }} \
             --security-group-ids ${{ env.SG_ID }} \
+            --subnet-id ${{ env.SUBNET_ID }} \
+            --associate-public-ip-address \
             --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":100,"VolumeType":"gp3"}}]' \
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GithubAction-Windows-GPU}]' \
             --query 'Instances[0].InstanceId' \
@@ -95,13 +128,13 @@ jobs:
 
       - name: Wait and Output Info
         run: |
-          echo "Waiting for instance to init..."
           aws ec2 wait instance-running --instance-ids ${{ env.INSTANCE_ID }}
           PUBLIC_IP=$(aws ec2 describe-instances --instance-ids ${{ env.INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
           
           echo "=========================================="
           echo "Instance ID: ${{ env.INSTANCE_ID }}"
+          echo "VPC ID: ${{ env.VPC_ID }}"
           echo "Public IP: $PUBLIC_IP"
           echo "Key Pair Name: ${{ env.KEY_NAME }}"
-          echo "NOTE: Download file .pem in Artifacts to decrypt password."
+          echo "CHECK ARTIFACTS FOR PASSWORD FILE"
           echo "=========================================="
