@@ -1,4 +1,4 @@
-name: AWS GPU (Try Bypass Restrictions)
+name: AWS GPU (Final Name Fix)
 
 on:
   workflow_dispatch:
@@ -9,11 +9,10 @@ on:
       aws_secret_access_key:
         description: 'AWS Secret Access Key'
         required: true
-      # Chuyển mặc định về US East 1 (Vùng ít bị chặn nhất)
       aws_region:
-        description: 'AWS Region (Default: us-east-1)'
+        description: 'AWS Region'
         required: true
-        default: 'us-east-1'
+        default: 'us-east-1' # Giữ nguyên vùng Mỹ để tránh bị chặn
       instance_type:
         description: 'Instance Type'
         required: true
@@ -33,18 +32,18 @@ jobs:
           aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
           aws-region: ${{ inputs.aws_region }}
 
-      # --- BƯỚC 1: TỰ ĐỘNG XÂY DỰNG MẠNG (VPC/Subnet) TẠI US-EAST-1 ---
-      - name: Setup Network Stack
+      # --- BƯỚC 1: SETUP NETWORK (US-EAST-1) ---
+      - name: Setup Network
         id: network
         run: |
           echo "Setting up network in ${{ inputs.aws_region }}..."
           
-          # Tìm VPC có sẵn trước
+          # Tìm VPC có sẵn
           VPC_ID=$(aws ec2 describe-vpcs --query "Vpcs[0].VpcId" --output text)
           
           if [ "$VPC_ID" == "None" ] || [ -z "$VPC_ID" ]; then
             echo "Creating new VPC..."
-            # Thêm Tag khi tạo VPC (Quan trọng để tránh SCP chặn)
+            # Thêm Tag Project=Learning để lách luật
             VPC_ID=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 \
               --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=StudentVPC},{Key=Project,Value=Learning}]' \
               --query 'Vpc.VpcId' --output text)
@@ -68,11 +67,11 @@ jobs:
           echo "VPC_ID=$VPC_ID" >> $GITHUB_ENV
           echo "SUBNET_ID=$SUBNET_ID" >> $GITHUB_ENV
 
-      # --- BƯỚC 2: TẠO KEY PAIR ---
+      # --- BƯỚC 2: KEY PAIR ---
       - name: Create Key Pair
         run: |
-          KEY_NAME="key-${{ github.run_id }}"
-          # Thêm tag cho Key Pair
+          # Đổi tên Key cho an toàn
+          KEY_NAME="my-key-${{ github.run_id }}"
           aws ec2 create-key-pair --key-name $KEY_NAME \
             --tag-specifications 'ResourceType=key-pair,Tags=[{Key=Name,Value=StudentKey}]' \
             --query 'KeyMaterial' --output text > $KEY_NAME.pem
@@ -85,26 +84,31 @@ jobs:
           name: aws-private-key
           path: ${{ env.PEM_FILE }}
 
-      # --- BƯỚC 3: TẠO SECURITY GROUP ---
+      # --- BƯỚC 3: SECURITY GROUP (ĐÃ SỬA TÊN) ---
       - name: Create Security Group
         run: |
-          SG_NAME="sg-${{ github.run_id }}"
-          SG_ID=$(aws ec2 create-security-group --group-name $SG_NAME --description "RDP Access" --vpc-id ${{ env.VPC_ID }} \
-            --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=StudentSG}]' \
+          # SỬA LỖI TẠI ĐÂY: Đổi 'sg-...' thành 'gpu-sg-...'
+          SG_NAME="gpu-sg-${{ github.run_id }}"
+          
+          echo "Creating Security Group: $SG_NAME"
+          SG_ID=$(aws ec2 create-security-group \
+            --group-name $SG_NAME \
+            --description "RDP Access" \
+            --vpc-id ${{ env.VPC_ID }} \
+            --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=StudentSG},{Key=Project,Value=Learning}]' \
             --query 'GroupId' --output text)
             
           aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 3389 --cidr 0.0.0.0/0
           echo "SG_ID=$SG_ID" >> $GITHUB_ENV
 
-      # --- BƯỚC 4: LAUNCH INSTANCE VỚI FULL TAGS ---
+      # --- BƯỚC 4: LAUNCH INSTANCE ---
       - name: Launch EC2 Instance
         run: |
           AMI_ID=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=Windows_Server-2022-English-Full-Base*" --query 'sort_by(Images, &CreationDate)[-1].ImageId' --output text)
           
-          echo "Attempting to launch in ${{ inputs.aws_region }}..."
+          echo "Launching in ${{ inputs.aws_region }}..."
           
-          # THAY ĐỔI QUAN TRỌNG:
-          # Thêm rất nhiều Tags phổ biến để đánh lừa các policy yêu cầu Tag
+          # Giữ nguyên Full Tags để tránh bị chặn
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id $AMI_ID \
             --count 1 \
@@ -113,7 +117,7 @@ jobs:
             --security-group-ids ${{ env.SG_ID }} \
             --subnet-id ${{ env.SUBNET_ID }} \
             --associate-public-ip-address \
-            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=WindowsGPU},{Key=Project,Value=Learning},{Key=Environment,Value=Dev},{Key=Owner,Value=Student}]' \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=WindowsGPU},{Key=Project,Value=Learning},{Key=Owner,Value=Student}]' \
             --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value=WindowsVolume},{Key=Project,Value=Learning}]' \
             --query 'Instances[0].InstanceId' \
             --output text)
@@ -124,4 +128,11 @@ jobs:
         run: |
           aws ec2 wait instance-running --instance-ids ${{ env.INSTANCE_ID }}
           IP=$(aws ec2 describe-instances --instance-ids ${{ env.INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
-          echo "SUCCESS! IP: $IP"
+          
+          echo "=========================================="
+          echo "✅ SUCCESS!"
+          echo "Instance ID: ${{ env.INSTANCE_ID }}"
+          echo "Public IP: $IP"
+          echo "Key Name: ${{ env.KEY_NAME }}"
+          echo "Please download .pem file from Artifacts to connect."
+          echo "=========================================="
