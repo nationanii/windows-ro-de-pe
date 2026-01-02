@@ -1,15 +1,107 @@
-name: test
+name: Create AWS GPU (Input Credentials)
 
-on: 
+on:
   workflow_dispatch:
- 
+    inputs:
+      # --- NHẬP CREDENTIALS TẠI ĐÂY ---
+      aws_access_key_id:
+        description: 'AWS Access Key ID'
+        required: true
+      aws_secret_access_key:
+        description: 'AWS Secret Access Key'
+        required: true
+      # --------------------------------
+      aws_region:
+        description: 'AWS Region'
+        required: true
+        default: 'ap-southeast-1' # Singapore
+      instance_type:
+        description: 'Instance Type'
+        required: true
+        default: 'g4dn.xlarge'
+
 jobs:
-  build:
-    timeout-minutes: 1440
-    runs-on: buildjet-16vcpu-ubuntu-2204
+  deploy-ec2:
+    runs-on: ubuntu-latest
     steps:
-      - name: chuẩn bị phần mềm
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Cấu hình AWS CLI dùng thông tin từ Input thay vì Secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ inputs.aws_access_key_id }}
+          aws-secret-access-key: ${{ inputs.aws_secret_access_key }}
+          aws-region: ${{ inputs.aws_region }}
+
+      # Vẫn tự động tạo Key Pair cho Windows để bạn không cần tạo trước
+      - name: Create Temporary Key Pair
+        id: create-key
         run: |
-          lsblk
-          df -h 
-          ls /dev
+          KEY_NAME="gh-action-key-${{ github.run_id }}"
+          aws ec2 create-key-pair \
+            --key-name $KEY_NAME \
+            --key-type rsa \
+            --query 'KeyMaterial' \
+            --output text > $KEY_NAME.pem
+          
+          echo "KEY_NAME=$KEY_NAME" >> $GITHUB_ENV
+          echo "PEM_FILE=$KEY_NAME.pem" >> $GITHUB_ENV
+
+      # Upload file .pem lên Artifacts để bạn tải về lấy pass
+      - name: Upload Key Pair
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-private-key
+          path: ${{ env.PEM_FILE }}
+          retention-days: 1
+
+      - name: Get Windows GPU AMI
+        run: |
+          AMI_ID=$(aws ec2 describe-images \
+            --owners amazon \
+            --filters "Name=name,Values=Windows_Server-2022-English-Full-Base*" \
+            --query 'sort_by(Images, &CreationDate)[-1].ImageId' \
+            --output text)
+          echo "AMI_ID=$AMI_ID" >> $GITHUB_ENV
+
+      - name: Create Security Group
+        id: create-sg
+        run: |
+          SG_NAME="github-action-windows-gpu-sg"
+          SG_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=$SG_NAME --query "SecurityGroups[0].GroupId" --output text)
+          
+          if [ "$SG_ID" == "None" ]; then
+            SG_ID=$(aws ec2 create-security-group --group-name $SG_NAME --description "Auto Gen SG" --query 'GroupId' --output text)
+            aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 3389 --cidr 0.0.0.0/0
+          fi
+          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
+
+      - name: Launch EC2 Instance
+        run: |
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ${{ env.AMI_ID }} \
+            --count 1 \
+            --instance-type ${{ inputs.instance_type }} \
+            --key-name ${{ env.KEY_NAME }} \
+            --security-group-ids ${{ env.SG_ID }} \
+            --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":100,"VolumeType":"gp3"}}]' \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GithubAction-Windows-GPU}]' \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+            
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+
+      - name: Wait and Output Info
+        run: |
+          echo "Waiting for instance to init..."
+          aws ec2 wait instance-running --instance-ids ${{ env.INSTANCE_ID }}
+          PUBLIC_IP=$(aws ec2 describe-instances --instance-ids ${{ env.INSTANCE_ID }} --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+          
+          echo "=========================================="
+          echo "Instance ID: ${{ env.INSTANCE_ID }}"
+          echo "Public IP: $PUBLIC_IP"
+          echo "Key Pair Name: ${{ env.KEY_NAME }}"
+          echo "NOTE: Download file .pem in Artifacts to decrypt password."
+          echo "=========================================="
