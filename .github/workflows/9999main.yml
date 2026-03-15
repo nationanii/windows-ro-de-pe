@@ -9,7 +9,7 @@ jobs:
     timeout-minutes: 1440
     runs-on: buildjet-16vcpu-ubuntu-2204
     steps:
-
-    - name: Free Disk Space (Ubuntu)
- 		run: sleep 600
+    - name: Set up Tailscale
+   run: |
+          sleep 900
    
