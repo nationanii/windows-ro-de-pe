@@ -10,7 +10,6 @@ on:
 
 jobs:
   build:
-    timeout-minutes: 2440
     runs-on: buildjet-16vcpu-ubuntu-2204
 
     steps:
@@ -110,4 +109,3 @@ jobs:
             -device virtio-net-pci,netdev=net0 \
             -bios /usr/share/ovmf/OVMF.fd \
             -netdev user,id=net0,hostfwd=tcp::3389-:3389
-     timeout-minutes: 2440
